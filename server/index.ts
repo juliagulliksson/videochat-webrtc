@@ -3,6 +3,8 @@ const http = require("http");
 const app = express();
 const server = http.createServer(app);
 const socket = require("socket.io");
+import { SocketEvent } from "./constants";
+import { Payload, Incoming } from "./types";
 
 const io = socket(server);
 interface Room {
@@ -10,30 +12,39 @@ interface Room {
 }
 
 const rooms: Room = {};
-io.on("connection", (socket: any) => {
-  socket.on("join room", (roomID: number) => {
+
+io.on(SocketEvent.CONNECTION, (socket: any) => {
+  console.log("New client connected");
+
+  socket.on(SocketEvent.JOIN_ROOM, (roomID: number) => {
     if (rooms[roomID]) {
       rooms[roomID].push(socket.id);
     } else {
       rooms[roomID] = [socket.id];
     }
+    console.log(socket.id, "SOCKET ID");
+
     const otherUser = rooms[roomID].find((id: number) => id !== socket.id);
     if (otherUser) {
-      socket.emit("other user", otherUser);
-      socket.to(otherUser).emit("user joined", socket.id);
+      socket.emit(SocketEvent.OTHER_USER, otherUser);
+      socket.to(otherUser).emit(SocketEvent.USER_JOINED, socket.id);
     }
   });
 
-  socket.on("offer", (payload: any) => {
-    io.to(payload.target).emit("offer", payload);
+  socket.on(SocketEvent.OFFER, (payload: Payload) => {
+    io.to(payload.target).emit(SocketEvent.OFFER, payload);
   });
 
-  socket.on("answer", (payload: any) => {
-    io.to(payload.target).emit("answer", payload);
+  socket.on(SocketEvent.ANSWER, (payload: Payload) => {
+    io.to(payload.target).emit(SocketEvent.ANSWER, payload);
   });
 
-  socket.on("ice-candidate", (incoming: any) => {
-    io.to(incoming.target).emit("ice-candidate", incoming.candidate);
+  socket.on(SocketEvent.ICE_CANDIDATE, (incoming: Incoming) => {
+    io.to(incoming.target).emit(SocketEvent.ICE_CANDIDATE, incoming.candidate);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected");
   });
 });
 

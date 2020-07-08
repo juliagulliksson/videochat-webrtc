@@ -5,8 +5,11 @@ const server = http.createServer(app);
 const socket = require("socket.io");
 
 const io = socket(server);
+interface Room {
+  [key: number]: number[];
+}
 
-const rooms = {};
+const rooms: Room = {};
 io.on("connection", (socket: any) => {
   socket.on("join room", (roomID: number) => {
     if (rooms[roomID]) {

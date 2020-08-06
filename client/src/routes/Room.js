@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import io from "socket.io-client";
-import { isCallSignatureDeclaration, preProcessFile } from "typescript";
+
+const socket = io.connect("/");
 
 const Room = (props) => {
   const userVideo = useRef();
@@ -18,21 +19,22 @@ const Room = (props) => {
         userVideo.current.srcObject = stream;
         userStream.current = stream;
 
-        socketRef.current = io.connect("/");
-        socketRef.current.emit("join room", props.match.params.roomID);
+        socket.emit("join room", props.match.params.roomID);
 
-        socketRef.current.on("other user", (userID) => {
+        socket.on("other user", (userID) => {
+          console.log("OTHER USER", userID);
           callUser(userID);
           otherUser.current = userID;
         });
 
-        socketRef.current.on("user joined", (userID) => {
+        socket.on("user joined", (userID) => {
+          console.log("USER JOINED", userID);
           otherUser.current = userID;
         });
 
-        socketRef.current.on("offer", handleReceiveCall);
-        socketRef.current.on("answer", handleAnswer);
-        socketRef.current.on("ice-candidate", handleNewICECandidateMsg);
+        socket.on("offer", handleReceiveCall);
+        socket.on("answer", handleAnswer);
+        socket.on("ice-candidate", handleNewICECandidateMsg);
       });
   }, []);
 
@@ -78,7 +80,7 @@ const Room = (props) => {
       })
       .then(() => {
         const payload = createPayload(userID);
-        socketRef.current.emit("offer", payload);
+        socket.emit("offer", payload);
       })
       .catch((e) => console.log(e));
   };
@@ -107,7 +109,7 @@ const Room = (props) => {
       .then(() => {
         const payload = createPayload(incoming.caller);
         // Answer back to the user sending the offer
-        socketRef.current.emit("answer", payload);
+        socket.emit("answer", payload);
       });
   };
 
@@ -124,7 +126,7 @@ const Room = (props) => {
         target: otherUser.current,
         candidate: e.candidate,
       };
-      socketRef.current.emit("ice-candidate", payload);
+      socket.emit("ice-candidate", payload);
     }
   };
 
@@ -141,7 +143,7 @@ const Room = (props) => {
   const createPayload = (target) => {
     return {
       target,
-      caller: socketRef.current.id,
+      caller: socket.id,
       sdp: peerRef.current.localDescription,
     };
   };
@@ -149,7 +151,7 @@ const Room = (props) => {
   return (
     <div>
       <video autoPlay muted="muted" ref={userVideo}></video>
-      <video autoPlay ref={partnerVideo}></video>
+      <video autoPlay muted="muted" ref={partnerVideo}></video>
     </div>
   );
 };
